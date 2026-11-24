@@ -235,6 +235,7 @@ function reminder(){
 /* ---------- the sequence of steps ---------- */
 const STEPS = [];
 STEPS.push({ id: "consent", r: rConsent });
+STEPS.push({ id: "intro", r: rIntro });
 STEPS.push({ id: "gen1", r: () => rGen(1) });
 STEPS.push({ id: "gen2", r: () => rGen(2) });
 STEPS.push({ id: "gen3", r: () => rGen(3) });
@@ -275,8 +276,19 @@ function rConsent(){
   on("no", () => { h(topbar() + `<h1>Thank you</h1><p>Nothing has been recorded. You can close this page.</p>`); try { localStorage.removeItem(KEY); } catch(e){} S = null; });
 }
 
+function rIntro(){
+  h(topbar("Instructions · 1 of 5") + `
+    <h1>What this study is about</h1>
+    <p>This is an <strong>economics experiment</strong> about how people make decisions when their choices affect both themselves and other people.</p>
+    <p>You will make <strong>${NPER} decisions</strong>. In each one you receive some tokens and decide how many to keep for yourself and how many to put into a <strong>project shared with three other participants</strong>. Tokens you keep benefit only you; tokens in the project benefit every member of the group, you included.</p>
+    <p>Your earnings depend on your own decisions and on the decisions of the other members of your group. There are <strong>no right or wrong answers</strong>: we are interested in what you would actually choose.</p>
+    <p>The next screens explain the rules step by step, with an example. Please read them carefully: three short questions will check that the rules are clear before the decisions begin.</p>
+    <div class="btnrow"><button id="next" autofocus>Continue</button></div>`);
+  on("next", go);
+}
+
 function rGen(n){
-  const head = topbar("Instructions · " + n + " of 4");
+  const head = topbar("Instructions · " + (n + 1) + " of 5");
   const next = `<div class="btnrow"><button id="next" autofocus>Continue</button></div>`;
   let body = "";
   if (n === 1) body = `
