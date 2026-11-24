@@ -161,18 +161,29 @@ function post(body, tries){
   if (PREVIEW) return Promise.resolve();
   const data = new URLSearchParams(); data.append(CONFIG.FORM_ENTRY, body);
   return fetch(CONFIG.FORM_ACTION, { method: "POST", mode: "no-cors", body: data, keepalive: body.length < 60000 })
-    .catch(() => {
+    .then(() => { DIAG.ok = true; DIAG.err = ""; })
+    .catch(err => {
+      DIAG.ok = false; DIAG.err = String(err && err.message || err);
       if (tries > 1) return new Promise(r => setTimeout(r, 1500)).then(() => post(body, tries - 1));
       const q = lsGet(QKEY) || []; q.push(body); lsSet(QKEY, q.slice(-30));   // retry on next visit
     });
 }
+/* test-mode diagnostics: shows whether the browser could send each save */
+const DIAG = { stage: "", ok: null, err: "", t: "" };
+function diagText(){
+  if (!DIAG.stage) return "Nothing sent yet.";
+  const st = DIAG.ok === null ? "sending..." : DIAG.ok ? "sent by the browser (Google does not confirm: check the Sheet)" : "NOT sent - network error: " + DIAG.err;
+  return `Last save "${DIAG.stage}" at ${DIAG.t}: ${st}`;
+}
+function diagRefresh(){ const el = document.getElementById("diag"); if (el) el.textContent = diagText(); }
 function flushOutbox(){
   const q = lsGet(QKEY) || []; if (!q.length) return;
   lsSet(QKEY, []); q.forEach(b => post(b, 2));
 }
 function save(stage){
   S.seq += 1; S.stage = stage; persist();
-  return post(payload(), 3);
+  DIAG.stage = stage; DIAG.ok = null; DIAG.t = new Date().toLocaleTimeString(); diagRefresh();
+  return post(payload(), 3).then(diagRefresh);
 }
 
 /* ---------- screen log & navigation (no way back) ---------- */
@@ -196,11 +207,19 @@ window.addEventListener("beforeunload", e => {
 
 /* ---------- small DOM helpers ---------- */
 const app = document.getElementById("app");
-function h(html){ app.innerHTML = html; window.scrollTo(0, 0); const f = app.querySelector("[autofocus]"); if (f) f.focus(); }
+function h(html){
+  app.innerHTML = html; window.scrollTo(0, 0); const f = app.querySelector("[autofocus]"); if (f) f.focus();
+  if (TEST){
+    const pg = document.getElementById("t_ping"), rs = document.getElementById("t_restart");
+    if (pg) pg.addEventListener("click", e => { e.preventDefault(); if (S) save("ping"); });
+    if (rs) rs.addEventListener("click", e => { e.preventDefault(); S = null; try { localStorage.removeItem(KEY); } catch(x){} location.reload(); });
+  }
+}
 function on(id, fn){ const el = document.getElementById(id); if (el) el.addEventListener("click", fn); }
 function topbar(left){
   const banner = PREVIEW ? `<div class="banner">Preview copy: answers are not saved anywhere.</div>`
-             : TEST ? `<div class="banner">Test session: the data are saved and marked as a test.</div>` : "";
+             : TEST ? `<div class="banner">Test session: the data are saved and marked as a test.<br><span id="diag">${diagText()}</span><br>
+                 <a href="#" id="t_ping">Send a test row now</a> · <a href="#" id="t_restart">Restart the test from the beginning</a></div>` : "";
   return banner + `<div class="topline"><span>${left || "Decision study"}</span><span class="right">Anonymous · about 12 minutes</span></div>`;
 }
 const fmt = x => (Math.round(x * 100) / 100).toString();
@@ -252,7 +271,7 @@ function rConsent(){
   </ul>
   <p>Do you agree to take part?</p>
   <div class="btnrow"><button id="yes" autofocus>I agree, start the study</button><button id="no" class="secondary">I do not wish to take part</button></div>`);
-  on("yes", () => { S.consent = 1; go(); });
+  on("yes", () => { S.consent = 1; if (TEST) save("start"); go(); });
   on("no", () => { h(topbar() + `<h1>Thank you</h1><p>Nothing has been recorded. You can close this page.</p>`); try { localStorage.removeItem(KEY); } catch(e){} S = null; });
 }
 
