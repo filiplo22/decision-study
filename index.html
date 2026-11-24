@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Decisions in a group project</title>
+<style>
+  :root{
+    --ink:#1d2430; --muted:#5b6574; --line:#d9dde3; --paper:#fbfaf7; --card:#ffffff;
+    --accent:#22406e; --accent-ink:#ffffff; --soft:#eef1f6; --warn:#8a3b12; --warn-bg:#fbefe7;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink)}
+  body{font:17px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-text-size-adjust:100%}
+  main{max-width:660px;margin:0 auto;padding:28px 20px 64px}
+  .topline{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:26px}
+  h1{font-size:26px;line-height:1.25;margin:0 0 18px;font-weight:650;letter-spacing:-.01em}
+  h2{font-size:19px;margin:26px 0 8px;font-weight:650}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 16px;padding-left:22px} li{margin:0 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:0 0 18px}
+  .formula{background:var(--soft);border-radius:8px;padding:14px 16px;margin:0 0 16px;font-variant-numeric:tabular-nums}
+  .formula div{margin:2px 0}
+  .state-box{border:2px solid var(--ink);border-radius:10px;padding:18px;text-align:center;margin:0 0 20px;background:var(--card)}
+  .state-box .label{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .state-box .value{font-size:28px;font-weight:700;margin-top:4px}
+  .state-box.hidden-state{border-style:dashed;border-color:var(--muted)}
+  .state-box.hidden-state .value{color:var(--muted);font-size:22px}
+  .muted{color:var(--muted)} .small{font-size:14px}
+  .btnrow{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+  button{font:inherit;font-weight:600;border-radius:8px;padding:12px 20px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);min-height:48px}
+  button.secondary{background:var(--card);color:var(--accent)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button:focus-visible,input:focus-visible,label.opt:focus-within{outline:3px solid #8fb0e6;outline-offset:2px}
+  input[type=text],input[type=number]{font:inherit;font-size:20px;padding:10px 12px;border:1px solid #b9c0ca;border-radius:8px;width:140px;background:#fff;color:var(--ink)}
+  .field{margin:14px 0}
+  .field > label.q{display:block;font-weight:600;margin-bottom:6px}
+  .err{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:12px 14px;margin:14px 0}
+  .ok{background:#eaf3ec;color:#1f5130;border-radius:8px;padding:12px 14px;margin:14px 0}
+  .opts{display:grid;gap:8px}
+  @media(min-width:620px){.opts.scale{grid-template-columns:repeat(4,1fr)}}
+  label.opt{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;cursor:pointer;font-size:15px;line-height:1.3}
+  label.opt input{width:18px;height:18px;flex:0 0 auto;margin:0}
+  .norm{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
+  .norm .action{font-weight:600;margin-bottom:10px}
+  .banner{background:#fff6d6;border:1px solid #e6cf7a;color:#5a4700;border-radius:8px;padding:8px 12px;font-size:14px;margin-bottom:18px}
+  .code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em}
+  table.rem{border-collapse:collapse;width:100%;font-size:15px;margin:0 0 4px}
+  table.rem td{padding:6px 8px;border-top:1px solid var(--line);vertical-align:top}
+  table.rem tr:first-child td{border-top:none}
+  table.rem td:first-child{white-space:nowrap;font-weight:600;width:1%}
+  noscript{display:block;padding:20px}
+  @media(max-width:520px){.topline .right{display:none} body{font-size:16px} h1{font-size:23px}}
+</style>
+</head>
+<body>
+<main id="app" aria-live="polite"></main>
+<noscript>This study needs JavaScript. Please enable it or use another browser.</noscript>
+<script>
+"use strict";
+/* ======================================================================
+   "Paying Not to Verify?" - human experiment (structure v4.2)
+   Single self-contained page. No server. Data are POSTed to a Google Form.
+   ====================================================================== */
+
+/* ---------- CONFIGURATION (the development chat fills these in) ---------- */
+const CONFIG = {
+  FORM_ACTION: "https://docs.google.com/forms/d/e/1FAIpQLSeooRnODLRAWaTaFn-9of7IR-D4HpsocInB1v-hrCAz6JMUiA/formResponse",          // e.g. "https://docs.google.com/forms/d/e/1FAIpQL.../formResponse"
+  FORM_ENTRY:  "entry.339797054",          // e.g. "entry.123456789"
+  PERIODS_PER_PART: 4,      // 4 (default); 3 if the pilot median exceeds 13 minutes
+  CLOSES_TEXT: "the end of the data collection (7 days after you received the link)",
+  VERSION: "pnv-human-1.0"
+};
+
+/* ---------- constants of the game (section 3.1) ---------- */
+const ENDOW = 20, M_HIGH = 0.75, M_LOW = 0.30, COST = 1;
+const PARTS = ["FREE", "COSTLY", "KNOWN"];
+const ORDERS = [            // the 6 possible orders; index is logged
+  ["FREE","COSTLY","KNOWN"], ["FREE","KNOWN","COSTLY"],
+  ["COSTLY","FREE","KNOWN"], ["COSTLY","KNOWN","FREE"],
+  ["KNOWN","FREE","COSTLY"], ["KNOWN","COSTLY","FREE"]
+];
+const ORDER_CODE = o => o.map(x => x[0]).join("");   // e.g. "FCK"
+
+const params = new URLSearchParams(location.search);
+const TEST = params.get("test") === "1";
+const PREVIEW = !(CONFIG.FORM_ACTION && CONFIG.FORM_ENTRY);
+const KEY = TEST ? "pnv_state_test_v1" : "pnv_state_v1";
+const QKEY = "pnv_outbox_v1";
+const P = CONFIG.PERIODS_PER_PART, NPER = 3 * P;
+
+/* ---------- randomness: browser cryptographic generator ---------- */
+function randInt(n){                       // uniform integer in [0, n)
+  const lim = Math.floor(256 / n) * n, b = new Uint8Array(1);
+  do { crypto.getRandomValues(b); } while (b[0] >= lim);
+  return b[0] % n;
+}
+function coin(){ return randInt(2) === 0 ? "H" : "L"; }   // fair, independent
+function newCode(){
+  const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let s = "";
+  for (let i = 0; i < 8; i++) s += a[randInt(a.length)];
+  return s;
+}
+
+/* ---------- storage (resume after reload; block a second attempt) ---------- */
+let S = null;
+const now = () => Date.now();
+function lsGet(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }
+function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+function persist(){ lsSet(KEY, S); }
+
+async function deviceHash(){
+  const raw = [navigator.userAgent, screen.width + "x" + screen.height, screen.colorDepth,
+               Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.language].join("|");
+  try {
+    const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+    return Array.from(new Uint8Array(d)).slice(0, 6).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch(e){
+    let h = 2166136261; for (const c of raw){ h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+    return ("00000000" + (h >>> 0).toString(16)).slice(-8);
+  }
+}
+
+function newSession(dev){
+  const oi = randInt(6), order = ORDERS[oi], periods = [];
+  let p = 0;
+  order.forEach((part, pos) => {
+    for (let k = 1; k <= P; k++){
+      p++;
+      periods.push({ p, part, pos: pos + 1, pip: k, state: null, verified: 0, cost: 0,
+                     contrib: null, t_state_on: null, t_reveal: null, t_state_off: null,
+                     t_contrib_on: null, t_contrib_off: null });
+    }
+  });
+  return {
+    v: CONFIG.VERSION, code: newCode(), test: TEST ? 1 : 0, preview: PREVIEW ? 1 : 0,
+    dev, mobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 1 : 0,
+    ppp: P, order_idx: oi, order: ORDER_CODE(order),
+    t0: now(), t0_iso: new Date().toISOString(), last: now(), step: 0, seq: 0,
+    stage: "start", complete: 0, quiz: [], periods, norms: {}, demo: {}, screens: []
+  };
+}
+
+/* ---------- sending to the Google Form (background POST) ---------- */
+function payload(){
+  const out = Object.assign({}, S);
+  out.saved_rel = now() - S.t0;
+  out.max_gap_s = Math.round(maxGap() / 1000);
+  delete out.last;
+  return JSON.stringify(out);
+}
+function maxGap(){
+  const ts = [0];
+  S.screens.forEach(s => { ts.push(s[1]); if (s[2] != null) ts.push(s[2]); });
+  ts.push(now() - S.t0); ts.sort((a, b) => a - b);
+  let g = 0; for (let i = 1; i < ts.length; i++) g = Math.max(g, ts[i] - ts[i - 1]);
+  return g;
+}
+function post(body, tries){
+  if (PREVIEW) return Promise.resolve();
+  const data = new URLSearchParams(); data.append(CONFIG.FORM_ENTRY, body);
+  return fetch(CONFIG.FORM_ACTION, { method: "POST", mode: "no-cors", body: data, keepalive: body.length < 60000 })
+    .catch(() => {
+      if (tries > 1) return new Promise(r => setTimeout(r, 1500)).then(() => post(body, tries - 1));
+      const q = lsGet(QKEY) || []; q.push(body); lsSet(QKEY, q.slice(-30));   // retry on next visit
+    });
+}
+function flushOutbox(){
+  const q = lsGet(QKEY) || []; if (!q.length) return;
+  lsSet(QKEY, []); q.forEach(b => post(b, 2));
+}
+function save(stage){
+  S.seq += 1; S.stage = stage; persist();
+  return post(payload(), 3);
+}
+
+/* ---------- screen log & navigation (no way back) ---------- */
+let curScreen = null;
+function enter(id){
+  const t = now() - S.t0;
+  if (curScreen && curScreen.id === id) return;
+  leave();
+  curScreen = { id, rec: [id, t, null] }; S.screens.push(curScreen.rec);
+  S.last = now(); persist();
+}
+function leave(){ if (curScreen && curScreen.rec[2] == null){ curScreen.rec[2] = now() - S.t0; } curScreen = null; }
+function rel(){ return now() - S.t0; }
+try {
+  history.pushState(null, "", location.href);
+  window.addEventListener("popstate", () => { try { history.pushState(null, "", location.href); } catch(e){} });
+} catch(e){}
+window.addEventListener("beforeunload", e => {
+  if (S && !S.complete && S.step > 0){ e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ---------- small DOM helpers ---------- */
+const app = document.getElementById("app");
+function h(html){ app.innerHTML = html; window.scrollTo(0, 0); const f = app.querySelector("[autofocus]"); if (f) f.focus(); }
+function on(id, fn){ const el = document.getElementById(id); if (el) el.addEventListener("click", fn); }
+function topbar(left){
+  const banner = PREVIEW ? `<div class="banner">Preview copy: answers are not saved anywhere.</div>`
+             : TEST ? `<div class="banner">Test session: the data are saved and marked as a test.</div>` : "";
+  return banner + `<div class="topline"><span>${left || "Decision study"}</span><span class="right">Anonymous · about 12 minutes</span></div>`;
+}
+const fmt = x => (Math.round(x * 100) / 100).toString();
+const stateName = s => s === "H" ? "HIGH (0.75)" : "LOW (0.30)";
+
+function reminder(){
+  return `<table class="rem" aria-label="Earnings reminder">
+    <tr><td>State High</td><td>Earnings = (20 − your contribution) + 0.75 × (sum of the 4 contributions)</td></tr>
+    <tr><td>State Low</td><td>Earnings = (20 − your contribution) + 0.30 × (sum of the 4 contributions)</td></tr>
+  </table>`;
+}
+
+/* ---------- the sequence of steps ---------- */
+const STEPS = [];
+STEPS.push({ id: "consent", r: rConsent });
+STEPS.push({ id: "gen1", r: () => rGen(1) });
+STEPS.push({ id: "gen2", r: () => rGen(2) });
+STEPS.push({ id: "gen3", r: () => rGen(3) });
+STEPS.push({ id: "gen4", r: () => rGen(4) });
+STEPS.push({ id: "quiz1", r: () => rQuiz(0) });
+STEPS.push({ id: "quiz2", r: () => rQuiz(1) });
+STEPS.push({ id: "quiz3", r: () => rQuiz(2) });
+for (let pos = 1; pos <= 3; pos++){
+  STEPS.push({ id: "part" + pos, r: () => rPartIntro(pos) });
+  for (let k = 1; k <= P; k++){
+    const p = (pos - 1) * P + k;
+    STEPS.push({ id: "state" + p, r: () => rState(p) });
+    STEPS.push({ id: "contrib" + p, r: () => rContrib(p) });
+  }
+}
+STEPS.push({ id: "norms", r: rNorms });
+STEPS.push({ id: "demo", r: rDemo });
+STEPS.push({ id: "end", r: rEnd });
+
+function go(){ S.step += 1; persist(); render(); }
+function render(){ const st = STEPS[S.step]; enter(st.id); st.r(); }
+
+/* ---------- screens ---------- */
+function rConsent(){
+  h(topbar() + `
+  <h1>Decisions in a group project</h1>
+  <p>Welcome. This study is part of a group project for the course <em>Experimental and Behavioural Economics</em> (Master's degree in Economics and Finance). It takes about 12 minutes and should be completed in one sitting.</p>
+  <ul>
+    <li><strong>Voluntary.</strong> You can stop at any time by closing this page.</li>
+    <li><strong>Anonymous.</strong> We do not ask for your name or e-mail. Your answers are stored under a random code and are used only for the course paper.</li>
+    <li><strong>No real money is paid.</strong> Your earnings in this study are hypothetical. Please make every decision as if each token you earn were worth €0.25, as it would be in a paid version of this study.</li>
+    <li>Please take part only once, do not use AI tools or other help, and do not discuss the study with anyone until ${CONFIG.CLOSES_TEXT}.</li>
+    <li>Once you move to the next screen you cannot go back.</li>
+  </ul>
+  <p>Do you agree to take part?</p>
+  <div class="btnrow"><button id="yes" autofocus>I agree, start the study</button><button id="no" class="secondary">I do not wish to take part</button></div>`);
+  on("yes", () => { S.consent = 1; go(); });
+  on("no", () => { h(topbar() + `<h1>Thank you</h1><p>Nothing has been recorded. You can close this page.</p>`); try { localStorage.removeItem(KEY); } catch(e){} S = null; });
+}
+
+function rGen(n){
+  const head = topbar("Instructions · " + n + " of 4");
+  const next = `<div class="btnrow"><button id="next" autofocus>Continue</button></div>`;
+  let body = "";
+  if (n === 1) body = `
+    <h1>Overview</h1>
+    <p>The study has <strong>three parts</strong>. Each part has ${P} periods, so there are ${NPER} periods in total. In every period you make one decision.</p>
+    <p>The rules of the game, explained on the next screens, are the <strong>same in all three parts</strong>. What you can learn before making your decision may differ between the parts. The rules of each part are explained when that part begins.</p>`;
+  if (n === 2) body = `
+    <h1>Your decision</h1>
+    <p>In each period you receive <strong>20 tokens</strong>. You decide how many of them to contribute to a <strong>group project</strong>: any whole number from 0 to 20. The tokens you do not contribute are yours.</p>
+    <p>Your group consists of <strong>you and three other participants</strong> in this study, selected at random by the computer. They decide separately, at other times; nobody interacts with anybody else.</p>`;
+  if (n === 3) body = `
+    <h1>The state of the project</h1>
+    <p>Each token in the project gives a return to <strong>every</strong> member of the group. The return depends on the state of the project, <strong>High</strong> or <strong>Low</strong>:</p>
+    <div class="formula">
+      <div><strong>State High:</strong> each token in the project gives 0.75 tokens to each of the four members.</div>
+      <div><strong>State Low:</strong> each token in the project gives 0.30 tokens to each of the four members.</div>
+    </div>
+    <p>Your earnings in a period are therefore:</p>
+    <div class="card">${reminder()}</div>
+    <p>The sum includes your own contribution.</p>
+    <p>In every period the computer flips a <strong>fair coin separately for you</strong>: High and Low each have a 50% chance, independently of the other periods and of the other participants. Members of a group may thus have different states; each member's earnings use that member's own state.</p>
+    <p class="muted">Example: you contribute 5 and the four contributions sum to 20. You keep 15. With state High you earn 15 + 0.75 × 20 = 30 tokens; with state Low you earn 15 + 0.30 × 20 = 21 tokens.</p>`;
+  if (n === 4) body = `
+    <h1>How earnings are computed</h1>
+    <p>After the data collection closes, the computer will:</p>
+    <ol>
+      <li>select <strong>one of the ${NPER} periods</strong> at random; this period counts for everybody;</li>
+      <li>for you, select <strong>three other participants</strong> at random and take their contributions in that period;</li>
+      <li>compute your earnings in that period with your contribution, their three contributions and <strong>your own state</strong> in that period.</li>
+    </ol>
+    <p>Every participant's earnings are computed separately in the same way, so your contribution may also be used in other participants' groups.</p>
+    <p>During the study you receive <strong>no information</strong> about others' choices, your earnings or the states you have not seen. At the end you will see only a thank-you message.</p>
+    <p>In a paid version of this study you would receive €3 for taking part plus €0.25 for each token earned in the selected period. <strong>In this study nothing is paid</strong>: please decide as if it were.</p>
+`;
+  h(head + body + next);
+  on("next", go);
+}
+
+const QUIZ = [
+  { q: "The state is <strong>High</strong> (0.75). You contribute 10 tokens and each of the other three members contributes 10 tokens. What are your earnings in tokens?",
+    a: 40, ex: "You keep 20 − 10 = 10 tokens. The four contributions sum to 10 + 10 + 10 + 10 = 40, and 0.75 × 40 = 30. Your earnings are 10 + 30 = <strong>40</strong> tokens." },
+  { q: "The state is <strong>Low</strong> (0.30). You contribute 0 tokens and each of the other three members contributes 20 tokens. What are your earnings in tokens?",
+    a: 38, ex: "You keep all 20 tokens. The four contributions sum to 0 + 20 + 20 + 20 = 60, and 0.30 × 60 = 18. Your earnings are 20 + 18 = <strong>38</strong> tokens." },
+  { q: "The state is <strong>Low</strong> (0.30). You contribute 20 tokens and each of the other three members contributes 0 tokens. What are your earnings in tokens?",
+    a: 6, ex: "You keep 20 − 20 = 0 tokens. The four contributions sum to 20, and 0.30 × 20 = 6. Your earnings are 0 + 6 = <strong>6</strong> tokens." }
+];
+function parseNum(s){ s = String(s).trim().replace(",", "."); if (!/^-?\d+(\.\d+)?$/.test(s)) return null; return parseFloat(s); }
+function rQuiz(i){
+  const Q = QUIZ[i];
+  if (!S.quiz[i]) S.quiz[i] = { q: i + 1, answers: [], correct: 0 };
+  const rec = S.quiz[i];
+  const failed = rec.answers.length > 0 && !rec.correct;
+  h(topbar("Control question " + (i + 1) + " of 3") + `
+    <h1>Control question ${i + 1} of 3</h1>
+    <p class="muted small">You must answer correctly to continue. Decimals are allowed.</p>
+    <div class="card"><p>${Q.q}</p>
+      <div class="field"><label class="q" for="ans">Your earnings (tokens)</label>
+      <input id="ans" type="text" inputmode="decimal" autocomplete="off" autofocus></div></div>
+    ${failed ? `<div class="err"><strong>Not correct.</strong> ${Q.ex}<br>Please enter the correct answer to continue.</div>` : ""}
+    <div id="msg"></div>
+    <div class="btnrow"><button id="check">Check answer</button></div>`);
+  const inp = document.getElementById("ans");
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("check").click(); });
+  on("check", () => {
+    const v = parseNum(inp.value);
+    if (v === null){ document.getElementById("msg").innerHTML = `<div class="err">Please enter a number.</div>`; return; }
+    rec.answers.push(v); rec.t = rel();
+    if (Math.abs(v - Q.a) < 0.001){
+      rec.correct = 1; persist();
+      if (i === 2){ save("quiz"); }
+      go();
+    } else { persist(); rQuiz(i); }
+  });
+}
+
+const PART_TEXT = {
+  FREE: `<p>In this part the state of each period is <strong>hidden</strong> when the period begins.</p>
+         <p>Before choosing your contribution you can click <strong>"Reveal the state"</strong> to see whether it is High or Low. <strong>Revealing is free.</strong></p>
+         <p>If you do not reveal it, the state of that period will not be shown to you, neither now nor at the end.</p>`,
+  COSTLY: `<p>In this part the state of each period is <strong>hidden</strong> when the period begins.</p>
+         <p>Before choosing your contribution you can click <strong>"Reveal the state (costs 1 token)"</strong> to see whether it is High or Low. <strong>Revealing costs 1 token</strong>, which is subtracted from your earnings in that period.</p>
+         <p>If you do not reveal it, the state of that period will not be shown to you, neither now nor at the end.</p>`,
+  KNOWN: `<p>In this part the state of each period is <strong>shown to you</strong> before you choose your contribution.</p>`
+};
+function rPartIntro(pos){
+  const part = ORDERS[S.order_idx][pos - 1];
+  h(topbar("Part " + pos + " of 3") + `
+    <h1>Part ${pos} of 3</h1>
+    <p>This part has ${P} periods.</p>
+    ${PART_TEXT[part]}
+    <p>Everything else is as described in the instructions.</p>
+    <div class="btnrow"><button id="next" autofocus>Start part ${pos}</button></div>`);
+  on("next", go);
+}
+function hdr(r){ return topbar("Part " + r.pos + " of 3 · Period " + r.pip + " of " + P); }
+
+function rState(p){
+  const r = S.periods[p - 1];
+  if (!r.state){ r.state = coin(); r.t_state_on = rel(); persist(); }   // drawn when the period begins
+  if (r.part === "KNOWN"){
+    h(hdr(r) + `
+      <h1>Period ${r.pip} of ${P}</h1>
+      <div class="state-box"><div class="label">State of this period</div><div class="value">${stateName(r.state)}</div></div>
+      <div class="btnrow"><button id="next" autofocus>Continue to your contribution</button></div>`);
+    on("next", () => { r.t_state_off = rel(); go(); });
+    return;
+  }
+  const label = r.part === "COSTLY" ? "Reveal the state (costs 1 token)" : "Reveal the state";
+  if (!r.verified){
+    h(hdr(r) + `
+      <h1>Period ${r.pip} of ${P}</h1>
+      <div class="state-box hidden-state"><div class="label">State of this period</div><div class="value">Hidden</div></div>
+      ${r.part === "COSTLY" ? `<p>You can reveal the state for 1 token, or continue without revealing it.</p>` : `<p>You can reveal the state for free, or continue without revealing it.</p>`}
+      <div class="btnrow"><button id="reveal">${label}</button><button id="skip" class="secondary">Continue without revealing</button></div>`);
+    on("reveal", () => { r.verified = 1; r.cost = r.part === "COSTLY" ? COST : 0; r.t_reveal = rel(); persist(); rState(p); });
+    on("skip", () => { r.t_state_off = rel(); go(); });
+  } else {
+    h(hdr(r) + `
+      <h1>Period ${r.pip} of ${P}</h1>
+      <div class="state-box"><div class="label">State of this period</div><div class="value">${stateName(r.state)}</div></div>
+      ${r.cost ? `<p class="muted">You paid 1 token to reveal the state.</p>` : ""}
+      <div class="btnrow"><button id="next" autofocus>Continue to your contribution</button></div>`);
+    on("next", () => { r.t_state_off = rel(); go(); });
+  }
+}
+
+function rContrib(p){
+  const r = S.periods[p - 1];
+  if (r.t_contrib_on == null){ r.t_contrib_on = rel(); persist(); }
+  const known = r.part === "KNOWN" || r.verified;
+  h(hdr(r) + `
+    <h1>Your contribution</h1>
+    <div class="state-box ${known ? "" : "hidden-state"}"><div class="label">State of this period</div>
+      <div class="value">${known ? stateName(r.state) : "Hidden (not revealed)"}</div></div>
+    ${r.cost ? `<p class="muted small">You paid 1 token to reveal the state; it is subtracted from your earnings in this period.</p>` : ""}
+    <div class="card">${reminder()}</div>
+    <div class="field"><label class="q" for="c">How many of your 20 tokens do you contribute to the project? (0 to 20)</label>
+      <input id="c" type="number" inputmode="numeric" min="0" max="20" step="1" autocomplete="off" autofocus></div>
+    <div id="msg"></div>
+    <div class="btnrow"><button id="ok">Confirm contribution</button></div>`);
+  const inp = document.getElementById("c");
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("ok").click(); });
+  on("ok", () => {
+    const s = inp.value.trim();
+    if (!/^\d{1,2}$/.test(s) || +s > 20){
+      document.getElementById("msg").innerHTML = `<div class="err">Please enter a whole number from 0 to 20.</div>`; return;
+    }
+    r.contrib = +s; r.t_contrib_off = rel();
+    S.step += 1; persist();
+    save("p" + p);
+    render();
+  });
+}
+
+const SCALE = ["Very inappropriate", "Somewhat inappropriate", "Somewhat appropriate", "Very appropriate"];
+const NORMS = [
+  ["a", "The participant does <strong>not reveal</strong> the state and contributes <strong>0</strong> tokens."],
+  ["b", "The participant reveals the state, sees that it is <strong>High</strong>, and contributes <strong>0</strong> tokens."],
+  ["c", "The participant reveals the state, sees that it is <strong>Low</strong>, and contributes <strong>0</strong> tokens."]
+];
+function rNorms(){
+  h(topbar("Your opinion") + `
+    <h1>Your opinion</h1>
+    <p>The periods are over. Consider a participant in a period where the state is hidden and can be revealed <strong>for free</strong>.</p>
+    <p>For each action below, please indicate how <strong>socially appropriate</strong> you think it is, that is, whether most people would consider it correct behaviour. There are no right or wrong answers.</p>
+    ${NORMS.map(([k, t]) => `<div class="norm"><div class="action">(${k}) ${t}</div>
+      <div class="opts scale" role="radiogroup">${SCALE.map((s, i) => `<label class="opt"><input type="radio" name="n_${k}" value="${i + 1}">${s}</label>`).join("")}</div></div>`).join("")}
+    <div id="msg"></div>
+    <div class="btnrow"><button id="next">Continue</button></div>`);
+  on("next", () => {
+    const vals = {};
+    for (const [k] of NORMS){
+      const c = app.querySelector(`input[name=n_${k}]:checked`);
+      if (!c){ document.getElementById("msg").innerHTML = `<div class="err">Please answer all three items.</div>`; return; }
+      vals[k] = +c.value;
+    }
+    S.norms = vals; S.norms.t = rel(); go();
+  });
+}
+
+const GENDERS = ["Female", "Male", "Other", "Prefer not to say"];
+const FIELDS = ["Economics", "Finance", "Business or management", "Law", "Political science",
+                "Science, technology, engineering or mathematics", "Humanities or other social sciences", "Other field", "I am not a student"];
+function rDemo(){
+  h(topbar("About you") + `
+    <h1>About you</h1>
+    <div class="field"><label class="q" for="age">Age</label><input id="age" type="number" inputmode="numeric" min="16" max="99" autocomplete="off"></div>
+    <div class="field"><span class="q" style="display:block;font-weight:600;margin-bottom:6px">Gender</span>
+      <div class="opts">${GENDERS.map(g => `<label class="opt"><input type="radio" name="gender" value="${g}">${g}</label>`).join("")}</div></div>
+    <div class="field"><span class="q" style="display:block;font-weight:600;margin-bottom:6px">Field of study (current or most recent)</span>
+      <div class="opts">${FIELDS.map(f => `<label class="opt"><input type="radio" name="field" value="${f}">${f}</label>`).join("")}</div></div>
+    <div id="msg"></div>
+    <div class="btnrow"><button id="next">Finish</button></div>`);
+  on("next", () => {
+    const age = document.getElementById("age").value.trim();
+    const g = app.querySelector("input[name=gender]:checked"), f = app.querySelector("input[name=field]:checked");
+    if (!/^\d{2}$/.test(age) || +age < 16 || !g || !f){
+      document.getElementById("msg").innerHTML = `<div class="err">Please answer all three questions (age as a whole number).</div>`; return;
+    }
+    S.demo = { age: +age, gender: g.value, field: f.value, t: rel() };
+    S.complete = 1; S.step += 1;
+    enter("end");
+    save("complete");
+    rEnd();
+  });
+}
+
+function rEnd(){
+  h(topbar() + `
+    <h1>Thank you!</h1>
+    <p>Your answers have been recorded. You can now close this page.</p>
+    <p>Please do not discuss the study with anyone until ${CONFIG.CLOSES_TEXT}.</p>
+    <p class="muted small">Your anonymous session code: <span class="code">${S.code}</span></p>
+    ${TEST || PREVIEW ? `<div class="btnrow"><button id="again" class="secondary">Start a new ${PREVIEW ? "preview" : "test"} session</button></div>` : ""}`);
+  on("again", () => { try { localStorage.removeItem(KEY); } catch(e){} location.reload(); });
+}
+
+function rAlready(){
+  h(topbar() + `<h1>You have already taken part</h1>
+    <p>Our records show that this study has already been completed in this browser. Each person can take part only once.</p>
+    <p>Thank you for your participation!</p>`);
+}
+
+/* ---------- start ---------- */
+(async function start(){
+  flushOutbox();
+  S = lsGet(KEY);
+  if (S && S.v !== CONFIG.VERSION) S = null;
+  if (S && S.complete){ if (TEST || PREVIEW) { rEnd(); } else { rAlready(); } return; }
+  if (!S){ S = newSession(await deviceHash()); persist(); }
+  else { S.resumed = (S.resumed || 0) + 1; persist(); }
+  render();
+})();
+</script>
+</body>
+</html>
